@@ -1,0 +1,38 @@
+SSIS Package: Load_Amazon_Amazon_SSIS.csv
+
+1) Flat File Connection Manager
+   - Name: CSV_Amazon
+   - File: C:\Users\eleag\Desktop\projetDW\Sources\csv\Amazon_SSIS.csv
+   - Format: Delimited
+   - Unicode: checked
+   - Row delimiter: {CR}{LF}
+   - Column delimiter: ,
+   - Text qualifier: "
+   - First row has column names: checked
+
+2) Control Flow
+   - Data Flow Task: Load_Amazon_CSV
+     - Precede with Execute SQL Task (optional): TRUNCATE TABLE dbo.stg_Amazon
+     - Post Data Flow: Execute SQL Task to call stored proc dbo.sp_Merge_Amazon_From_Staging
+
+3) Data Flow
+   - Flat File Source: CSV_Amazon
+   - Derived Column / Data Conversion: Convert columns to appropriate types if necessary
+   - Conditional Split: route malformed rows to Error Output
+   - OLE DB Destination: dbo.stg_Amazon (Fast Load)
+   - Error rows -> Flat File Destination or OLE DB Destination dbo.err_Amazon
+
+4) Parameters
+   - Package parameter: csvPath (default C:\Users\eleag\Desktop\projetDW\Sources\csv\Amazon_SSIS.csv)
+   - Package parameter: truncateStaging (default True)
+
+5) Deployment
+   - Deploy package to SSIS Catalog (Integration Services Catalog)
+   - Create SQL Agent job to execute the package
+
+6) Notes
+   - After initial load inspect staging to determine real data types and reduce NVARCHAR sizes.
+   - Adjust business key columns in scripts/merge_scd2_Amazon.sql if needed.
+
+7) Troubleshooting
+   - If columns not visible in Flat File manager, check BOM and try toggling Unicode option or opening file with Notepad++ to inspect separators.

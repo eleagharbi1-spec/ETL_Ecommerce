@@ -1,0 +1,22 @@
+-- Suggested DAX measures for Power BI (replace table/column names as needed)
+
+-- Basic counts and sums
+TotalCount = COUNTROWS('vw_Amazon_Current')
+
+-- Replace [Col5] with the sales/amount column
+TotalSales = SUM('vw_Amazon_Current'[Col5])
+
+AvgPrice = AVERAGE('vw_Amazon_Current'[Col5])
+
+-- Time intelligence (requires a proper Date table and relationship)
+Sales_YoY = CALCULATE([TotalSales], SAMEPERIODLASTYEAR('dimDate'[FullDate]))
+Sales_MoM = [TotalSales] - CALCULATE([TotalSales], PARALLELPERIOD('dimDate'[FullDate], -1, MONTH))
+
+-- Error count
+ErrorCount = COUNTROWS('err_Amazon')
+
+-- Top N example (use in visuals)
+TopN_Sales = CALCULATE([TotalSales], TOPN(10, ALL('vw_Amazon_Current'[Col2]), [TotalSales]))
+
+-- % of total
+PctOfTotal_Sales = DIVIDE([TotalSales], CALCULATE([TotalSales], ALL('vw_Amazon_Current')))
