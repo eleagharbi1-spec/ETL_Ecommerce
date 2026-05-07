@@ -17,7 +17,6 @@ BEGIN
 
     BEGIN TRY
         BEGIN TRANSACTION;
-
         -- Compute hashes on staging if not present
         UPDATE dbo.stg_Amazon
         SET BusinessKeyHash = HASHBYTES('SHA1', ISNULL(Col1,'') + '|' + ISNULL(Col2,'') + '|' + ISNULL(Col3,'')),
@@ -35,6 +34,9 @@ BEGIN
             )
         WHERE BusinessKeyHash IS NULL OR RowHash IS NULL;
 
+        DECLARE @ClosedRows INT = 0;
+        DECLARE @InsertedRows INT = 0;
+
         -- Close existing current records that have changed
         UPDATE f
         SET f.IsCurrent = 0,
@@ -44,6 +46,8 @@ BEGIN
             ON f.BusinessKeyHash = s.BusinessKeyHash
         WHERE f.IsCurrent = 1
           AND (f.RowHash IS NULL OR s.RowHash IS NULL OR f.RowHash <> s.RowHash);
+
+        SET @ClosedRows = @@ROWCOUNT;
 
         -- Insert new records for new keys or changed rows
         INSERT INTO dbo.fct_Amazon (
@@ -67,7 +71,12 @@ BEGIN
         WHERE f.SurrogateKey IS NULL
            OR (f.RowHash IS NULL OR s.RowHash IS NULL OR f.RowHash <> s.RowHash);
 
+        SET @InsertedRows = @@ROWCOUNT;
+
         COMMIT TRANSACTION;
+
+        -- Return summary for monitoring
+        SELECT @ClosedRows AS ClosedRows, @InsertedRows AS InsertedRows;
 
     END TRY
     BEGIN CATCH

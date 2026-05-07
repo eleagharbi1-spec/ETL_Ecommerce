@@ -1,0 +1,46 @@
+SSIS package template: Load_Amazon_CSV (detailed steps to implement in Visual Studio)
+
+Control Flow:
+1) Execute SQL Task: Insert start audit record
+   - SQL: scripts/ssis_execute_sql_tasks.sql (first INSERT statement)
+   - Parameters: SourceFileName (string), PackageName (string)
+   - Capture the returned BatchID (use OUTPUT / SELECT SCOPE_IDENTITY()) into an SSIS variable BatchID
+
+2) Execute SQL Task (optional): TRUNCATE TABLE dbo.stg_Amazon (if truncateStaging = True)
+
+3) Data Flow Task: Load_Amazon_CSV
+   Data Flow components:
+   - Flat File Source: CSV_Amazon (use the connection manager configured earlier)
+   - Data Conversion / Derived Column transforms: convert fields to expected types, trim, replace, parse dates with TRY_PARSE
+   - Conditional Split: route bad rows to Error output
+   - OLE DB Destination (Fast Load) -> dbo.stg_Amazon
+   - Error rows -> OLE DB Destination dbo.err_Amazon
+
+4) Execute SQL Task: Call stored proc dbo.sp_Merge_Amazon_From_Staging
+   - No parameters
+
+5) Execute SQL Task: Update etl_control with EndTime, RowCount, ErrorCount, Status
+   - Parameters: RowCount, ErrorCount, Status, Message, BatchID
+
+6) (Optional) Send Mail task on failure
+
+Variables to add in package:
+- User::SourceFileName (String)
+- User::PackageName (String)
+- User::BatchID (Int32)
+- User::RowCount (Int32)
+- User::ErrorCount (Int32)
+- User::Status (String)
+
+Logging:
+- Enable SSIS logging (OnError, OnWarning, OnInformation) to SQL Server or file
+- Use event handlers OnError to update etl_control Status=Failed
+
+Deployment:
+- Deploy to SSIS Catalog
+- Create a SQL Agent job step type SSIS to run the package; pass parameters (csv path etc.)
+
+Notes:
+- Use transactions or checkpoints if you need restartability
+- Use parameterized queries to avoid SQL injection
+- Adjust mappings after first load
